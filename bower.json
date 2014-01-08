@@ -1,0 +1,28 @@
+{
+  "name": "mang-models",
+  "version": "0.0.0",
+  "authors": [
+    "Josh Taylor <joshrtay@gmail.com>"
+  ],
+  "description": "client side models and validation for angular",
+  "main": "main.js",
+  "keywords": [
+    "angular",
+    "validation",
+    "models"
+  ],
+  "license": "MIT",
+  "homepage": "https://github.com/themang/models",
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ],
+  "dependencies": {
+    "angular": "~1.2.6",
+    "angular-resource": "~1.2.7",
+    "angils": "*"
+  }
+}
