@@ -16,7 +16,9 @@ angular.module('mangModels', ['ngResource', 'angils'])
       var Resource = resources[name];
       if (Resource && !Resource.prototype.validators) {
         var schema = schemas[name];
-        Resource.prototype.validators = ValidatorFactory(schema.attributes, schema.type);
+        if(schema.attributes) {
+          Resource.prototype.validators = ValidatorFactory(schema.attributes, schema.type);
+        }
       }
       return Resource;
     },
