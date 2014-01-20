@@ -128,6 +128,7 @@ function(ValidatorFactory, MangResource) {
 .directive('modelValidator', ['Models', function(Models) {
     return {
       require: ['form', '?modelForm'],
+      priority: 1000,
       link: function(scope, element, attrs, ctrls) {
         var form = ctrls[0]
           , modelForm = ctrls[1]
@@ -136,16 +137,34 @@ function(ValidatorFactory, MangResource) {
             ? Models.get(modelName).prototype.validators
             : modelForm.model.validators;
 
-        _.each(map, function(val, key) {
-          var fieldCtrl = form[key];
-          if (fieldCtrl) {
-            fieldCtrl.$parsers.push(val.bind(form));
+        function addValidator(fieldCtrl, validator) {
+          if (fieldCtrl && validator) {
+            console.log('fieldCtrl', fieldCtrl)
+            fieldCtrl.$parsers.push(validator.bind(form));
+            console.log('field', fieldCtrl.$name);
             // required needs to validate before changes
-            if (val.required && fieldCtrl.$isEmpty(fieldCtrl.$viewValue)) {
+            if (validator.required && fieldCtrl.$isEmpty(fieldCtrl.$viewValue)) {
               fieldCtrl.$setValidity('required', false);
             }
           } 
+        }
+
+
+        // add validators for current fields on form
+        _.each(map, function(val, key) {
+          var fieldCtrl = form[key];
+          addValidator(fieldCtrl, val);
         });
+
+        
+        // add validators for future fields on form
+        var addControl = form.$addControl;
+        form.$addControl = function(control) {
+          addControl.call(form, control);
+          addValidator(control, map[control.$name]);
+        }
+
+        // TODO: remove validators on $removeControl?
       }
     }
 }])
