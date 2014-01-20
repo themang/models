@@ -7,19 +7,39 @@ var anchor = require('anchor')
   , Emitter = component('emitter')
   , util = require('util'); 
 
-angular.module('mangModels', ['ngResource', 'angils'])
-.factory('Models', ['ValidatorFactory', function(ValidatorFactory) {
+angular.module('mangModels', ['ngResource', 'angils',
+  require('weo-error-codes')])
+.factory('MangResource', function() {
+  return function(Resource, schema) {
+    var defaults = {};
+    _.each(schema.attributes, function(attr, name) {
+      if(attr.defaultsTo)
+        defaults[name] = _.clone(attr.defaultsTo, true);
+    });
+
+    function MangResource(values) {
+      Resource.call(this, _.extend(defaults, values))
+    }
+    _.extend(MangResource, Resource);
+    util.inherits(MangResource, Resource);
+    return MangResource;
+  };
+})
+.factory('Models', ['ValidatorFactory', 'MangResource',
+function(ValidatorFactory, MangResource) {
   var resources = {};
   var schemas = {};
   return {
     get: function(name) {
-      var Resource = resources[name];
+      var Resource = resources[name]
+        , schema = schemas[name];
+      
       if (Resource && !Resource.prototype.validators) {
         var schema = schemas[name];
         if (!schema) throw new Error('No schema called: ' + name);
         Resource.prototype.validators = ValidatorFactory(schema.attributes, schema.type);
       }
-      return Resource;
+      return MangResource(Resource, schema);
     },
     add: function(name, resource) {
       resources[name] = resource;
@@ -91,6 +111,7 @@ angular.module('mangModels', ['ngResource', 'angils'])
 
         var err = anchor(value).to(requirements.data, o);
         if(err) {
+
           _.each(err, function(val, key) {
             ctrl[name].$setValidity(val.rule, false);
           });
@@ -98,62 +119,74 @@ angular.module('mangModels', ['ngResource', 'angils'])
         
         return value;
       };
+      // keep track of required validators
+      validators[name].required = curValidation.required;
     });
     return validators;
   };
 })
-
 .directive('modelValidator', ['Models', function(Models) {
     return {
-      require: 'form',
-      link: function(scope, element, attrs, ctrl) {
-        var modelName = scope.$eval(attrs.modelValidator);
-        var Model = Models.get(modelName);
-        var map = Model.prototype.validators;
+      require: ['form', '?modelForm'],
+      link: function(scope, element, attrs, ctrls) {
+        var form = ctrls[0]
+          , modelForm = ctrls[1]
+          , modelName = scope.$eval(attrs.modelValidator)
+          , map = modelName
+            ? Models.get(modelName).prototype.validators
+            : modelForm.model.validators;
+
         _.each(map, function(val, key) {
-          ctrl[key] && ctrl[key].$parsers.push(val.bind(ctrl));
+          var fieldCtrl = form[key];
+          if (fieldCtrl) {
+            fieldCtrl.$parsers.push(val.bind(form));
+            // required needs to validate before changes
+            if (val.required && fieldCtrl.$isEmpty(fieldCtrl.$viewValue)) {
+              fieldCtrl.$setValidity('required', false);
+            }
+          } 
         });
       }
     }
 }])
-.directive('modelForm', ['Models', 'promiseStatus', function(Models, p) {
-
-  function Ctrl($scope, $attrs, $inherits) {
+.directive('modelForm', ['Models', 'promiseStatus', 'WeoError', 
+function(Models, promiseStatus, WeoError) {
+  function Ctrl() {
     Emitter.call(this);
 
-    var statuses = {};
-    // XXX usually we like to put this sort of thing in line, but 
-    // in this case it needs to happen before link
-    this.name = $attrs.modelForm;
+    this.status = {};
+    this.errors = {};
 
-    this.init = function() {
-      this.model = new (Models.get(this.name));      
+    this.init = function(form, name) {
+      this.form = form;
+      this.model = _.isString(name) ? new (Models.get(name)) : name;      
+      this.weoError = new WeoError(form);
     }
 
-    this.action = function(action) {
+    this.action = function(action, options) {
       var self = this;
-      var promise = statuses[action] = p(this.model[action]());
+      var promise = this.status[action] = promiseStatus(this.model[action](options));
+      promise.then(self.weoError.success(action), self.weoError.failure(action));
       promise.then(function() {
         self.emit(action);
-      })
+      });
     };
 
-    this.status = function(action) {
-      return statuses[action];
-    }
-
-    $scope.ModelForm = this;
+    this.validate = function(action, options) {
+      this.form.$valid && this.action(action, options);
+    };
   }
 
   util.inherits(Ctrl, Emitter);
 
   return {
-    controller: ['$scope', '$attrs', '$inherits', Ctrl],
-    require: 'modelForm',
-    transclude: true,
-    template: require('./modelsForm.html'),
-    link: function(scope, element, attrs, ctrl) {
-      ctrl.init();
+    controller: Ctrl,
+    require: ['modelForm', 'form'],
+    priority: -10,
+    link: function(scope, element, attrs, ctrls) {
+      ctrls[0].init(ctrls[1], scope.$eval(attrs.modelForm));
+      var name = attrs.modelFormCtrl || 'ModelForm';
+      scope[name] = ctrls[0];
     } 
   }
 }])
@@ -161,15 +194,12 @@ angular.module('mangModels', ['ngResource', 'angils'])
   return {
     require:'^modelForm',
     link: function(scope, element, attrs, ctrl) {
-      var modelHref = attrs.modelHref;
-      var e = modelHref.split(' ')[0];
-      var href = modelHref.split(' ')[1];
+      var parts = attrs.modelHref.split(' ')
+        , e = parts[0]
+        , href = parts[1];
       ctrl.on(e, function() {
-        scope.$eval(function() {
-          $location.path(href);
-        });
-        
-      })
+        $location.path(href);
+      });
     }
   }
 }])

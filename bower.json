@@ -5,7 +5,7 @@
     "Josh Taylor <joshrtay@gmail.com>"
   ],
   "description": "client side models and validation for angular",
-  "main": "main.js",
+  "main": "mang-models.js",
   "keywords": [
     "angular",
     "validation",

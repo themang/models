@@ -2,7 +2,7 @@
   "name": "mang-models",
   "version": "0.0.0",
   "description": "client side models and validation for angular",
-  "main": "main.js",
+  "main": "mang-models.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
