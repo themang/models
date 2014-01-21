@@ -1,6 +1,6 @@
 {
   "name": "mang-models",
-  "version": "0.0.2",
+  "version": "0.0.1",
   "description": "client side models and validation for angular",
   "main": "mang-models.js",
   "scripts": {
@@ -21,6 +21,12 @@
     "url": "https://github.com/themang/models/issues"
   },
   "dependencies": {
-    "anchor": "~0.9.7"
+    "anchor": "~0.9.7",
+    "debowerify": "~0.5.1"
+  },
+  "browserify": {
+    "transform": [
+      "debowerify"
+    ]
   }
 }
