@@ -21,14 +21,6 @@
     "url": "https://github.com/themang/models/issues"
   },
   "dependencies": {
-    "anchor": "~0.9.7",
-    "dehtmlify": "0.0.1",
-    "debowerify": "~0.5.1"
-  },
-  "browserify": {
-    "transform": [
-      "dehtmlify",
-      "debowerify"
-    ]
+    "anchor": "~0.9.7"
   }
 }
