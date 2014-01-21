@@ -181,23 +181,6 @@ function(Models, promiseStatus, WeoError, $q) {
       this.weoError = new WeoError(form);
     };
 
-    this.debounceAction = function(action, options) {
-      var self = this
-        , key = 'debounce_' + action;
-      if (! this.status[key]) {
-        var deferred = $q.defer();
-        this.status[key] = deferred.promise;
-        this.status[key].deferred = deferred;
-      }
-
-      clearTimeout(this.timeouts[action]);
-      this.timeouts[action] = setTimeout(function() {
-        self.action(action, options)['finally'](function() {
-          self.status[key].deferred.resolve();
-        });
-      }, 500);
-    };
-
     this.action = function(action, options) {
       var self = this;
       var promise = this.status[action] = promiseStatus(this.model[action](options));
