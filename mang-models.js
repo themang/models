@@ -37,7 +37,7 @@ function(ValidatorFactory, MangResource) {
       if (Resource && !Resource.prototype.validators) {
         var schema = schemas[name];
         if (!schema) throw new Error('No schema called: ' + name);
-        Resource.prototype.validators = ValidatorFactory(schema.attributes, schema.type);
+        Resource.prototype.validators = ValidatorFactory(schema.attributes, schema.types);
       }
       return MangResource(Resource, schema);
     },
@@ -82,7 +82,7 @@ function(ValidatorFactory, MangResource) {
 
     var validators = {};
     _.each(validations, function(curValidation, name) {
-      validators[name] = function(value, setValidity) {
+      validators[name] = function(value, model) {
         var requirements = anchor(curValidation);
         // Grab value and set to null if undefined
         if(typeof value == 'undefined') value = null;
@@ -100,16 +100,14 @@ function(ValidatorFactory, MangResource) {
             return;
         }
 
-        var ctrl = this
-          , o = {};
-        o[name] = value;
+        var ctrl = this;
         _.each(requirements.data, function(req, key) {
           ctrl[name].$setValidity(key, true);
           if(typeof req !== 'function') return;
-          requirements.data[key] = req.apply(o, []);
+          requirements.data[key] = req.apply(model, []);
         });
 
-        var err = anchor(value).to(requirements.data, o);
+        var err = anchor(value).to(requirements.data, model);
         if(err) {
 
           _.each(err, function(val, key) {
@@ -139,16 +137,15 @@ function(ValidatorFactory, MangResource) {
 
         function addValidator(fieldCtrl, validator) {
           if (fieldCtrl && validator) {
-            console.log('fieldCtrl', fieldCtrl)
-            fieldCtrl.$parsers.push(validator.bind(form));
-            console.log('field', fieldCtrl.$name);
+            fieldCtrl.$parsers.push(function(value) {
+              return validator.call(form, value, modelForm.model);
+            });
             // required needs to validate before changes
             if (validator.required && fieldCtrl.$isEmpty(fieldCtrl.$viewValue)) {
               fieldCtrl.$setValidity('required', false);
             }
           } 
         }
-
 
         // add validators for current fields on form
         _.each(map, function(val, key) {
@@ -168,19 +165,38 @@ function(ValidatorFactory, MangResource) {
       }
     }
 }])
-.directive('modelForm', ['Models', 'promiseStatus', 'WeoError', 
-function(Models, promiseStatus, WeoError) {
+.directive('modelForm', ['Models', 'promiseStatus', 'WeoError', '$q',
+function(Models, promiseStatus, WeoError, $q) {
   function Ctrl() {
     Emitter.call(this);
 
     this.status = {};
     this.errors = {};
+    this.timeouts = {};
+    this.debounces = {};
 
     this.init = function(form, name) {
       this.form = form;
       this.model = _.isString(name) ? new (Models.get(name)) : name;      
       this.weoError = new WeoError(form);
-    }
+    };
+
+    this.debounceAction = function(action, options) {
+      var self = this
+        , key = 'debounce_' + action;
+      if (! this.status[key]) {
+        var deferred = $q.defer();
+        this.status[key] = deferred.promise;
+        this.status[key].deferred = deferred;
+      }
+
+      clearTimeout(this.timeouts[action]);
+      this.timeouts[action] = setTimeout(function() {
+        self.action(action, options)['finally'](function() {
+          self.status[key].deferred.resolve();
+        });
+      }, 500);
+    };
 
     this.action = function(action, options) {
       var self = this;
@@ -189,10 +205,7 @@ function(Models, promiseStatus, WeoError) {
       promise.then(function() {
         self.emit(action);
       });
-    };
-
-    this.validate = function(action, options) {
-      this.form.$valid && this.action(action, options);
+      return promise;
     };
   }
 
@@ -207,7 +220,7 @@ function(Models, promiseStatus, WeoError) {
       var name = attrs.modelFormCtrl || 'ModelForm';
       scope[name] = ctrls[0];
     } 
-  }
+  };
 }])
 .directive('modelHref', ['$location', function($location) {
   return {
@@ -220,5 +233,5 @@ function(Models, promiseStatus, WeoError) {
         $location.path(href);
       });
     }
-  }
-}])
+  };
+}]);
