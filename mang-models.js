@@ -205,13 +205,26 @@ function(Models, promiseStatus, WeoError, $q) {
     } 
   };
 }])
+.directive('modelAction', [function() {
+  require: '^modelForm',
+  link: function(scope, element, attrs, ctrls) {
+    var parts = attrs.modelAction.split(':')
+      , e = parts[0]
+      , expr = parts.slice(1).join(':');
+
+    ctrl.on(e, function() {
+      scope.$eval(expr);
+    });
+  }
+}])
 .directive('modelHref', ['$location', function($location) {
   return {
     require:'^modelForm',
     link: function(scope, element, attrs, ctrl) {
-      var parts = attrs.modelHref.split(' ')
+      var parts = attrs.modelHref.split(':')
         , e = parts[0]
-        , href = parts[1];
+        , href = parts.slice(1).join(':');
+        
       ctrl.on(e, function() {
         $location.path(href);
       });
