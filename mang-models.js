@@ -208,7 +208,7 @@ function(Models, promiseStatus, WeoError, $q) {
 .directive('modelAction', [function() {
   return {
     require: '^modelForm',
-    link: function(scope, element, attrs, ctrls) {
+    link: function(scope, element, attrs, ctrl) {
       var parts = attrs.modelAction.split(':')
         , e = parts[0]
         , expr = parts.slice(1).join(':');
