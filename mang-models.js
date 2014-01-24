@@ -225,7 +225,7 @@ function(Models, promiseStatus, WeoError, $q) {
     link: function(scope, element, attrs, ctrl) {
       var parts = attrs.modelHref.split(':')
         , e = parts[0]
-        , href = parts.slice(1).join(':');
+        , href = parts.slice(1).join(':').trim();
 
       ctrl.on(e, function() {
         $location.path(href);
