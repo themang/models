@@ -185,8 +185,8 @@ function(Models, promiseStatus, WeoError, $q) {
       var self = this;
       var promise = this.status[action] = promiseStatus(this.model[action](options));
       promise.then(self.weoError.success(action), self.weoError.failure(action));
-      promise.then(function() {
-        self.emit(action);
+      promise.then(function(res) {
+        self.emit(action, res);
       });
       return promise;
     };
@@ -211,7 +211,7 @@ function(Models, promiseStatus, WeoError, $q) {
     link: function(scope, element, attrs, ctrl) {
       var parts = attrs.modelAction.split(':')
         , e = parts[0]
-        , expr = parts.slice(1).join(':');
+        , expr = parts.slice(1).join(':').trim();
 
       ctrl.on(e, function() {
         scope.$eval(expr);
