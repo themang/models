@@ -91,8 +91,9 @@ function(ValidatorFactory, MangResource) {
         // try and validate it
         if(!curValidation.required) {
           if(value === null || value === '') 
-            return;
+            return value;
         }
+
 
         // If Boolean and required manually check
         if(curValidation.required && curValidation.type === 'boolean') {
@@ -109,12 +110,11 @@ function(ValidatorFactory, MangResource) {
 
         var err = anchor(value).to(requirements.data, model);
         if(err) {
-
-          _.each(err, function(val, key) {
+          _.each(err, function(val) {
             ctrl[name].$setValidity(val.rule, false);
           });
         }
-        
+
         return value;
       };
       // keep track of required validators
@@ -135,22 +135,12 @@ function(ValidatorFactory, MangResource) {
             ? Models.get(modelName).prototype.validators
             : modelForm.model.validators;
 
-        function addValidator(fieldCtrl, validator) {
-          if (fieldCtrl && validator) {
-            fieldCtrl.$parsers.push(function(value) {
-              return validator.call(form, value, modelForm.model);
-            });
-            // required needs to validate before changes
-            if (validator.required && fieldCtrl.$isEmpty(fieldCtrl.$viewValue)) {
-              fieldCtrl.$setValidity('required', false);
-            }
-          } 
-        }
+        
 
         // add validators for current fields on form
         _.each(map, function(val, key) {
           var fieldCtrl = form[key];
-          addValidator(fieldCtrl, val);
+          modelForm.addValidator(fieldCtrl, val, form);
         });
 
         
@@ -158,7 +148,7 @@ function(ValidatorFactory, MangResource) {
         var addControl = form.$addControl;
         form.$addControl = function(control) {
           addControl.call(form, control);
-          addValidator(control, map[control.$name]);
+          modelForm.addValidator(control, map[control.$name], form);
         }
 
         // TODO: remove validators on $removeControl?
@@ -190,6 +180,19 @@ function(Models, promiseStatus, WeoError, $q) {
       });
       return promise;
     };
+
+    this.addValidator = function(fieldCtrl, validator, form) {
+      var self = this;
+      if (fieldCtrl && validator) {
+        fieldCtrl.$parsers.push(function(value) {
+          return validator.call(form, value, self.model);
+        });
+        // required needs to validate before changes
+        if (validator.required && fieldCtrl.$isEmpty(fieldCtrl.$viewValue)) {
+          fieldCtrl.$setValidity('required', false);
+        }
+      } 
+    }
   }
 
   util.inherits(Ctrl, Emitter);
@@ -204,6 +207,22 @@ function(Models, promiseStatus, WeoError, $q) {
       scope[name] = ctrls[0];
     } 
   };
+}])
+.directive('fieldValidate', ['ValidatorFactory', function(ValidatorFactory) {
+  return {
+    require: ['ngModel', '^form', '^modelForm'],
+    link: function(scope, element, attr, ctrls) {
+      var fieldCtrl = ctrls[0];
+      var form = ctrls[1];
+      var modelForm = ctrls[2];
+
+      var schema = {};
+      var attribute = scope.$eval(attr.fieldValidate);
+      schema[fieldCtrl.$name] = attribute;
+      var validators = ValidatorFactory(schema);
+      modelForm.addValidator(fieldCtrl, validators[fieldCtrl.$name], form);
+    }
+  }
 }])
 .directive('modelAction', [function() {
   return {
