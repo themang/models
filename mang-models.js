@@ -85,22 +85,10 @@ function(ValidatorFactory, MangResource) {
             ? Models.get(modelName).prototype.validators
             : modelForm.model.validators;
 
-        function addValidator(fieldCtrl, validator) {
-          if (fieldCtrl && validator) {
-            fieldCtrl.$parsers.push(function(value) {
-              return validator.call(form, value, modelForm.model);
-            });
-            // required needs to validate before changes
-            if (validator.required && fieldCtrl.$isEmpty(fieldCtrl.$viewValue)) {
-              fieldCtrl.$setValidity('required', false);
-            }
-          }
-        }
-
         // add validators for current fields on form
         _.each(map, function(val, key) {
           var fieldCtrl = form[key];
-          addValidator(fieldCtrl, val);
+          modelForm.addValidator(fieldCtrl, val, form);
         });
 
 
@@ -108,7 +96,7 @@ function(ValidatorFactory, MangResource) {
         var addControl = form.$addControl;
         form.$addControl = function(control) {
           addControl.call(form, control);
-          addValidator(control, map[control.$name]);
+          modelForm.addValidator(control, map[control.$name], form);
         }
 
         // TODO: remove validators on $removeControl?
@@ -135,11 +123,24 @@ function(Models, promiseStatus, WeoError, $q) {
       var self = this;
       var promise = this.status[action] = promiseStatus(this.model[action](options));
       promise.then(self.weoError.success(action), self.weoError.failure(action));
-      promise.then(function() {
-        self.emit(action);
+      promise.then(function(res) {
+        self.emit(action, res);
       });
       return promise;
     };
+
+    this.addValidator = function(fieldCtrl, validator, form) {
+      var self = this;
+      if (fieldCtrl && validator) {
+        fieldCtrl.$parsers.push(function(value) {
+          return validator.call(form, value, self.model);
+        });
+        // required needs to validate before changes
+        if (validator.required && fieldCtrl.$isEmpty(fieldCtrl.$viewValue)) {
+          fieldCtrl.$setValidity('required', false);
+        }
+      }
+    }
   }
 
   util.inherits(Ctrl, Emitter);
@@ -155,13 +156,44 @@ function(Models, promiseStatus, WeoError, $q) {
     }
   };
 }])
+.directive('fieldValidate', ['ValidatorFactory', function(ValidatorFactory) {
+  return {
+    require: ['ngModel', '^form', '^modelForm'],
+    link: function(scope, element, attr, ctrls) {
+      var fieldCtrl = ctrls[0];
+      var form = ctrls[1];
+      var modelForm = ctrls[2];
+
+      var schema = {};
+      var attribute = scope.$eval(attr.fieldValidate);
+      schema[fieldCtrl.$name] = attribute;
+      var validators = ValidatorFactory(schema);
+      modelForm.addValidator(fieldCtrl, validators[fieldCtrl.$name], form);
+    }
+  }
+}])
+.directive('modelAction', [function() {
+  return {
+    require: '^modelForm',
+    link: function(scope, element, attrs, ctrl) {
+      var parts = attrs.modelAction.split(':')
+        , e = parts[0]
+        , expr = parts.slice(1).join(':').trim();
+
+      ctrl.on(e, function() {
+        scope.$eval(expr);
+      });
+    }
+  };
+}])
 .directive('modelHref', ['$location', function($location) {
   return {
     require:'^modelForm',
     link: function(scope, element, attrs, ctrl) {
-      var parts = attrs.modelHref.split(' ')
+      var parts = attrs.modelHref.split(':')
         , e = parts[0]
-        , href = parts[1];
+        , href = parts.slice(1).join(':').trim();
+
       ctrl.on(e, function() {
         $location.path(href);
       });
