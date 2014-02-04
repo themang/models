@@ -5,7 +5,7 @@ require('angils');
 var anchor = require('anchor')
   , _ = require('underscore')
   , Emitter = component('emitter')
-  , util = require('util'); 
+  , util = require('util');
 
 angular.module('mangModels', ['ngResource', 'angils',
   require('weo-error-codes')])
@@ -33,7 +33,7 @@ function(ValidatorFactory, MangResource) {
     get: function(name) {
       var Resource = resources[name]
         , schema = schemas[name];
-      
+
       if (Resource && !Resource.prototype.validators) {
         var schema = schemas[name];
         if (!schema) throw new Error('No schema called: ' + name);
@@ -52,75 +52,25 @@ function(ValidatorFactory, MangResource) {
   }
 }])
 .factory('ValidatorFactory', function() {
-  function anchorify(attrs) {
-    var validations = {};
-    for(var attr in attrs) {
-      var validation = validations[attr] = {};
-      var attrsVal = attrs[attr];
-
-      if(typeof attrsVal === 'string')
-        attrsVal = {type: attrsVal};
-
-      for(var prop in attrsVal) {
-        if(/^(defaultsTo|primaryKey|autoIncrement|unique|index|columnName)$/.test(prop)) continue;
-
-        // use the Anchor `in` method for enums
-        if(prop === 'enum') {
-          validation['in'] = attrsVal[prop];
-        }
-        else {
-          validation[prop] = attrsVal[prop];
-        }
-      }
-    }
-    return validations;
-  }
-
+  var anchorSchema = require('anchor-schema');
   return function(attrs, types) {
-    var validations = anchorify(attrs);
-    anchor.define(types || {});
+    var validators = anchorSchema(attrs, types)
+      , res = {};
 
-    var validators = {};
-    _.each(validations, function(curValidation, name) {
-      validators[name] = function(value, model) {
-        var requirements = anchor(curValidation);
-        // Grab value and set to null if undefined
-        if(typeof value == 'undefined') value = null;
-
-        // If value is not required and empty then don't
-        // try and validate it
-        if(!curValidation.required) {
-          if(value === null || value === '') 
-            return;
-        }
-
-        // If Boolean and required manually check
-        if(curValidation.required && curValidation.type === 'boolean') {
-          if(value.toString() == 'true' || value.toString() == 'false') 
-            return;
-        }
-
-        var ctrl = this;
-        _.each(requirements.data, function(req, key) {
-          ctrl[name].$setValidity(key, true);
-          if(typeof req !== 'function') return;
-          requirements.data[key] = req.apply(model, []);
-        });
-
-        var err = anchor(value).to(requirements.data, model);
-        if(err) {
-
-          _.each(err, function(val, key) {
-            ctrl[name].$setValidity(val.rule, false);
+    _.each(validators, function(fn, prop) {
+      if(prop[0] !== '$') {
+        res[prop] = function(value, model) {
+          var ctrl = this;
+          validators[prop](value, model, function(rule, valid) {
+            ctrl[prop].$setValidity(rule, valid);
           });
-        }
-        
-        return value;
-      };
-      // keep track of required validators
-      validators[name].required = curValidation.required;
+
+          return value;
+        };
+      }
     });
-    return validators;
+
+    return res;
   };
 })
 .directive('modelValidator', ['Models', function(Models) {
@@ -144,7 +94,7 @@ function(ValidatorFactory, MangResource) {
             if (validator.required && fieldCtrl.$isEmpty(fieldCtrl.$viewValue)) {
               fieldCtrl.$setValidity('required', false);
             }
-          } 
+          }
         }
 
         // add validators for current fields on form
@@ -153,7 +103,7 @@ function(ValidatorFactory, MangResource) {
           addValidator(fieldCtrl, val);
         });
 
-        
+
         // add validators for future fields on form
         var addControl = form.$addControl;
         form.$addControl = function(control) {
@@ -177,7 +127,7 @@ function(Models, promiseStatus, WeoError, $q) {
 
     this.init = function(form, name) {
       this.form = form;
-      this.model = _.isString(name) ? new (Models.get(name)) : name;      
+      this.model = _.isString(name) ? new (Models.get(name)) : name;
       this.weoError = new WeoError(form);
     };
 
@@ -202,7 +152,7 @@ function(Models, promiseStatus, WeoError, $q) {
       ctrls[0].init(ctrls[1], scope.$eval(attrs.modelForm));
       var name = attrs.modelFormCtrl || 'ModelForm';
       scope[name] = ctrls[0];
-    } 
+    }
   };
 }])
 .directive('modelHref', ['$location', function($location) {

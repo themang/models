@@ -23,7 +23,8 @@
   "dependencies": {
     "anchor": "~0.9.7",
     "dehtmlify": "0.0.1",
-    "debowerify": "~0.5.1"
+    "debowerify": "~0.5.1",
+    "anchor-schema": "git://github.com/weo-edu/anchor-schema"
   },
   "browserify": {
     "transform": [
