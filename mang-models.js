@@ -9,37 +9,76 @@ var anchor = require('anchor')
 
 angular.module('mangModels', ['ngResource', 'angils',
   require('weo-error-codes')])
-.factory('MangResource', function() {
-  return function(Resource, schema) {
+.factory('MangResource', ['$resource', 'ValidatorFactory', '$http',
+function($resource, ValidatorFactory, $http) {
+  return function(server, base, schema, opts, methods) {
     var defaults = {};
-    _.each(schema.attributes, function(attr, name) {
-      if(attr.defaultsTo)
-        defaults[name] = _.clone(attr.defaultsTo, true);
+    if(schema && schema.attributes) {
+      _.each(schema.attributes, function(attr, name) {
+        if(attr.defaultsTo)
+          defaults[name] = _.clone(attr.defaultsTo, true);
+      });
+    }
+
+    // Strip the slashes on either side of our
+    // path components so that we can .join('/')
+    // without having duplicate slashes
+    function stripSlashes(str) {
+      var start = 0, end = str.length - 1;
+      while(str[start] === '/')
+        start++;
+      while(str[end] === '/')
+        end--;
+      return str.slice(start, end + 1);
+    }
+
+    function buildUrl(path) {
+      path = path || '';
+      var parts = [server];
+      if(!path || path[0] !== '/')
+        parts.push(base);
+
+      path && parts.push(path);
+      return parts.map(stripSlashes).join('/');
+    }
+
+    _.each(methods, function(descriptor, name) {
+      descriptor.url = buildUrl(descriptor.url);
+      var transforms = [].concat(descriptor.transformResponse || [])
+        , complete = [].concat(descriptor.complete || []);
+
+      transforms = transforms.concat($http.defaults.transformResponse);
+      transforms = transforms.concat(complete.map(function(fn) {
+        return function(data) {
+          fn.apply(this, arguments);
+          return data;
+        };
+      }));
+
+      delete descriptor.complete;
+      descriptor.transformResponse = transforms;
     });
+
+    var Resource = $resource(server + '/' + base + '/', opts, methods);
 
     function MangResource(values) {
       Resource.call(this, _.extend(defaults, values))
     }
+
     _.extend(MangResource, Resource);
     util.inherits(MangResource, Resource);
+    if(schema && schema.attributes)
+      Resource.prototype.validators = ValidatorFactory(schema.attributes, schema.types);
     return MangResource;
   };
-})
+}])
 .factory('Models', ['ValidatorFactory', 'MangResource',
 function(ValidatorFactory, MangResource) {
   var resources = {};
   var schemas = {};
   return {
     get: function(name) {
-      var Resource = resources[name]
-        , schema = schemas[name];
-
-      if (Resource && !Resource.prototype.validators) {
-        var schema = schemas[name];
-        if (!schema) throw new Error('No schema called: ' + name);
-        Resource.prototype.validators = ValidatorFactory(schema.attributes, schema.types);
-      }
-      return MangResource(Resource, schema);
+      return resources[name];
     },
     add: function(name, resource) {
       resources[name] = resource;
@@ -90,7 +129,6 @@ function(ValidatorFactory, MangResource) {
           var fieldCtrl = form[key];
           modelForm.addValidator(fieldCtrl, val, form);
         });
-
 
         // add validators for future fields on form
         var addControl = form.$addControl;
@@ -172,30 +210,19 @@ function(Models, promiseStatus, WeoError, $q) {
     }
   }
 }])
-.directive('modelAction', [function() {
+.directive('modelAction', ['$location', function($location) {
   return {
     require: '^modelForm',
     link: function(scope, element, attrs, ctrl) {
-      var parts = attrs.modelAction.split(':')
-        , e = parts[0]
-        , expr = parts.slice(1).join(':').trim();
+      var hash = scope.$eval(attrs.modelAction);
+      _.each(hash, function(action, evt) {
+        ctrl.on(evt, function() {
+          var path = action[0] === '/'
+            ? action
+            : scope.$eval(action);
 
-      ctrl.on(e, function() {
-        scope.$eval(expr);
-      });
-    }
-  };
-}])
-.directive('modelHref', ['$location', function($location) {
-  return {
-    require:'^modelForm',
-    link: function(scope, element, attrs, ctrl) {
-      var parts = attrs.modelHref.split(':')
-        , e = parts[0]
-        , href = parts.slice(1).join(':').trim();
-
-      ctrl.on(e, function() {
-        $location.path(href);
+          path && $location.path(path);
+        });
       });
     }
   };
