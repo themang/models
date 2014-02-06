@@ -106,6 +106,7 @@ function(ValidatorFactory, MangResource) {
 
           return value;
         };
+        res[prop].required = validators[prop].required;
       }
     });
 
@@ -135,7 +136,7 @@ function(ValidatorFactory, MangResource) {
         form.$addControl = function(control) {
           addControl.call(form, control);
           modelForm.addValidator(control, map[control.$name], form);
-        }
+        };
 
         // TODO: remove validators on $removeControl?
       }
