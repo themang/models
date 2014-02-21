@@ -152,10 +152,19 @@ function(Models, promiseStatus, WeoError, $q) {
     this.timeouts = {};
     this.debounces = {};
 
-    this.init = function(form, name) {
+    this.init = function(form, nameOrModel) {
       this.form = form;
-      this.model = _.isString(name) ? new (Models.get(name)) : name;
       this.weoError = new WeoError(form);
+      this.setModel(nameOrModel);
+    };
+
+    this.setModel = function(name) {
+      this.model = _.isString(name) ? new (Models.get(name)) : name;
+    };
+
+    this.reset = function(nameOrModel) {
+      this.form.$setPristine();
+      this.setModel(nameOrModel);
     };
 
     this.action = function(action, options) {
