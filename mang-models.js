@@ -62,12 +62,12 @@ function($resource, ValidatorFactory, $http) {
     var Resource = $resource(server + '/' + base + '/', opts, methods);
 
     function MangResource(values) {
-      Resource.call(this, _.extend(defaults, values))
+      Resource.call(this, _.defaults(values || {}, defaults));
     }
 
     _.extend(MangResource, Resource);
     util.inherits(MangResource, Resource);
-    Emitter(MangResource);
+    Emitteridd(MangResource);
     if(schema && schema.attributes)
       Resource.prototype.validators = ValidatorFactory(schema.attributes, schema.types);
     return MangResource;
