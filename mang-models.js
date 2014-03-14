@@ -67,7 +67,7 @@ function($resource, ValidatorFactory, $http) {
 
     _.extend(MangResource, Resource);
     util.inherits(MangResource, Resource);
-    Emitteri(MangResource);
+    Emitter(MangResource);
     if(schema && schema.attributes)
       Resource.prototype.validators = ValidatorFactory(schema.attributes, schema.types);
     return MangResource;
