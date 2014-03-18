@@ -2,6 +2,7 @@ require('angular');
 require('angular-resource');
 require('angils');
 
+var component = require('lib/component');
 var anchor = require('anchor')
   , _ = require('underscore')
   , Emitter = component('emitter')
