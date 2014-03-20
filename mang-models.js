@@ -7,6 +7,9 @@ var anchor = require('anchor')
   , Emitter = component('emitter')
   , util = require('util');
 
+
+
+
 angular.module('mangModels', ['ngResource',
   require('weo-error-codes')])
 .factory('MangResource', ['$resource', 'ValidatorFactory', '$http',
@@ -99,10 +102,10 @@ function(ValidatorFactory, MangResource) {
 
     _.each(validators, function(fn, prop) {
       if(prop[0] !== '$') {
-        res[prop] = function(value, model) {
+        res[prop] = function(value, model, fieldCtrl) {
           var ctrl = this;
           validators[prop](value, model, function(rule, valid) {
-            ctrl[prop].$setValidity(rule, valid);
+            ctrl[fieldCtrl.$name].$setValidity(rule, valid);
           });
 
           return value;
@@ -179,16 +182,7 @@ function(Models, promiseStatus, WeoError, $q) {
     };
 
     this.addValidator = function(fieldCtrl, validator, form) {
-      var self = this;
-      if (fieldCtrl && validator) {
-        fieldCtrl.$parsers.push(function(value) {
-          return validator.call(form, value, self.model);
-        });
-        // required needs to validate before changes
-        if (validator.required && fieldCtrl.$isEmpty(fieldCtrl.$viewValue)) {
-          fieldCtrl.$setValidity('required', false);
-        }
-      }
+      addValidator(fieldCtrl, validator, form, this.model);
     }
   }
 
@@ -206,18 +200,20 @@ function(Models, promiseStatus, WeoError, $q) {
   };
 }])
 .directive('fieldValidate', ['ValidatorFactory', function(ValidatorFactory) {
+  var idx = 0;
   return {
-    require: ['ngModel', '^form', '^modelForm'],
+    require: ['ngModel', '^form', '?^modelForm'],
     link: function(scope, element, attr, ctrls) {
       var fieldCtrl = ctrls[0];
       var form = ctrls[1];
-      var modelForm = ctrls[2];
+      var modelForm = ctrls[1];
 
       var schema = {};
       var attribute = scope.$eval(attr.fieldValidate);
-      schema[fieldCtrl.$name] = attribute;
+      idx++;
+      schema[idx] = attribute;
       var validators = ValidatorFactory(schema);
-      modelForm.addValidator(fieldCtrl, validators[fieldCtrl.$name], form);
+      addValidator(fieldCtrl, validators[idx], form, modelForm && modelForm.model);
     }
   }
 }])
@@ -238,3 +234,16 @@ function(Models, promiseStatus, WeoError, $q) {
     }
   };
 }]);
+
+function addValidator(fieldCtrl, validator, form, self) {
+  self = self || {};
+  if (fieldCtrl && validator) {
+    fieldCtrl.$parsers.push(function(value) {
+      return validator.call(form, value, self, fieldCtrl);
+    });
+    // required needs to validate before changes
+    if (validator.required && fieldCtrl.$isEmpty(fieldCtrl.$viewValue)) {
+      fieldCtrl.$setValidity('required', false);
+    }
+  }
+}
