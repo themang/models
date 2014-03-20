@@ -1,13 +1,12 @@
 require('angular');
 require('angular-resource');
-require('angils');
 
 var anchor = require('anchor')
   , _ = require('underscore')
   , Emitter = component('emitter')
   , util = require('util');
 
-angular.module('mangModels', ['ngResource', 'angils',
+angular.module('mangModels', ['ngResource',
   require('weo-error-codes')])
 .factory('MangResource', ['$resource', 'ValidatorFactory', '$http',
 function($resource, ValidatorFactory, $http) {
