@@ -223,10 +223,10 @@ function(Models, promiseStatus, WeoError, $q) {
     link: function(scope, element, attrs, ctrl) {
       var hash = scope.$eval(attrs.modelAction);
       _.each(hash, function(action, evt) {
-        ctrl.on(evt, function() {
+        ctrl.on(evt, function(res) {
           var path = action[0] === '/'
             ? action
-            : scope.$eval(action);
+            : scope.$eval(action, {res: res});
 
           path && $location.path(path);
         });
