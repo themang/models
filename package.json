@@ -1,6 +1,6 @@
 {
   "name": "mang-models",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "description": "client side models and validation for angular",
   "main": "mang-models.js",
   "scripts": {
@@ -24,8 +24,7 @@
     "anchor": "~0.9.7",
     "dehtmlify": "0.0.1",
     "debowerify": "~0.5.1",
-    "anchor-schema": "git://github.com/weo-edu/anchor-schema",
-    "debowerify": "~0.5.1"
+    "anchor-schema": "git://github.com/weo-edu/anchor-schema"
   },
   "browserify": {
     "transform": [
