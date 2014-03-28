@@ -171,6 +171,10 @@ function(Models, promiseStatus, WeoError, $q) {
       this.setModel(nameOrModel);
     };
 
+    this.ready = function(action) {
+      return !this.status[action] || !this.status[action].loading;
+    };
+
     this.action = function(action, options) {
       var self = this;
       var promise = this.status[action] = promiseStatus(this.model[action](options));
