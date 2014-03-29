@@ -153,8 +153,6 @@ function(Models, promiseStatus, WeoError, $q) {
 
     this.status = {};
     this.errors = {};
-    this.timeouts = {};
-    this.debounces = {};
 
     this.init = function(form, nameOrModel) {
       this.form = form;
