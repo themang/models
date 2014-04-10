@@ -146,18 +146,19 @@ function(ValidatorFactory, MangResource) {
       }
     }
 }])
-.directive('modelForm', ['Models', 'promiseStatus', 'WeoError', '$q',
-function(Models, promiseStatus, WeoError, $q) {
+.directive('modelForm', ['Models', 'promiseStatus', 'WeoError',
+function(Models, promiseStatus, WeoError) {
   function Ctrl() {
     Emitter.call(this);
 
     this.status = {};
     this.errors = {};
 
-    this.init = function(form, nameOrModel) {
+    this.init = function(form, nameOrModel, allowConcurrent) {
       this.form = form;
       this.weoError = new WeoError(form);
       this.setModel(nameOrModel);
+      this.allowConcurrent = allowConcurrent;
     };
 
     this.setModel = function(name) {
@@ -174,9 +175,15 @@ function(Models, promiseStatus, WeoError, $q) {
     };
 
     this.action = function(action, options) {
+      if(this.allowConcurrent.indexOf(action) === -1 && ! this.ready(action))
+        return;
+
       var self = this;
       var promise = this.status[action] = promiseStatus(this.model[action](options));
-      promise.then(self.weoError.success(action), self.weoError.failure(action));
+      promise.then(self.weoError.success(action), self.weoError.failure(action))
+      ['catch'](function(err) {
+        self.emit('action-error', action, err);
+      });
       promise.then(function(res) {
         self.emit(action, res);
       });
@@ -185,7 +192,7 @@ function(Models, promiseStatus, WeoError, $q) {
 
     this.addValidator = function(fieldCtrl, validator, form) {
       addValidator(fieldCtrl, validator, form, this.model);
-    }
+    };
   }
 
   util.inherits(Ctrl, Emitter);
@@ -195,9 +202,14 @@ function(Models, promiseStatus, WeoError, $q) {
     require: ['modelForm', 'form'],
     priority: -10,
     link: function(scope, element, attrs, ctrls) {
-      ctrls[0].init(ctrls[1], scope.$eval(attrs.modelForm));
+      var modelForm = ctrls[0];
+      var form = ctrls[1];
+      var allowConcurrent = scope.$eval(attrs.allowConcurrent || '');
+
+      modelForm.init(form, scope.$eval(attrs.modelForm),
+        [].concat(allowConcurrent).filter(Boolean));
       var name = attrs.modelFormCtrl || 'ModelForm';
-      scope[name] = ctrls[0];
+      scope[name] = modelForm;
     }
   };
 }])
