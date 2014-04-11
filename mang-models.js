@@ -7,9 +7,6 @@ var anchor = require('anchor')
   , Emitter = component('emitter')
   , util = require('util');
 
-
-
-
 angular.module('mangModels', ['ngResource',
   require('weo-error-codes')])
 .factory('MangResource', ['$resource', 'ValidatorFactory', '$http',
@@ -76,24 +73,27 @@ function($resource, ValidatorFactory, $http) {
     return MangResource;
   };
 }])
-.factory('Models', ['ValidatorFactory', 'MangResource',
-function(ValidatorFactory, MangResource) {
+.provider('Models', function() {
+  var _resources = {};
   var resources = {};
-  var schemas = {};
-  return {
-    get: function(name) {
-      return resources[name];
-    },
-    add: function(name, resource) {
-      resources[name] = resource;
-      return this;
-    },
-    schemas: function(s) {
-      _.extend(schemas, s);
-      return this;
-    }
-  }
-}])
+  // XXX This whole thing is kind of ugly, it just has to support a similar
+  // interface to the old style
+  this.add = function(name) {
+    var args = _.toArray(arguments);
+    _resources[name] = args.slice(1);
+    return this;
+  };
+
+  this.$get = ['MangResource', function(MangResource) {
+    return {
+      get: function(name) {
+        if(! resources[name])
+          resources[name] = MangResource.apply(null, _resources[name]);
+        return resources[name];
+      }
+    };
+  }];
+})
 .factory('ValidatorFactory', function() {
   var anchorSchema = require('anchor-schema');
   return function(attrs, types) {
